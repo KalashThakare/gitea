@@ -20,20 +20,30 @@ import (
 	notify_service "code.gitea.io/gitea/services/notify"
 )
 
-// StopZombieTasks stops the task which have running status, but haven't been updated for a long time
+// StopZombieTasks stops tasks in running/cancelling status that haven't been updated for a long time
 func StopZombieTasks(ctx context.Context) error {
-	return stopTasks(ctx, actions_model.FindTaskOptions{
-		Status:        actions_model.StatusRunning,
+	return stopTasksByStatuses(ctx, actions_model.FindTaskOptions{
 		UpdatedBefore: timeutil.TimeStamp(time.Now().Add(-setting.Actions.ZombieTaskTimeout).Unix()),
-	})
+	}, actions_model.StatusRunning, actions_model.StatusCancelling)
 }
 
-// StopEndlessTasks stops the tasks which have running status and continuous updates, but don't end for a long time
+// StopEndlessTasks stops tasks in running/cancelling status with continuous updates that don't end for a long time
 func StopEndlessTasks(ctx context.Context) error {
-	return stopTasks(ctx, actions_model.FindTaskOptions{
-		Status:        actions_model.StatusRunning,
+	return stopTasksByStatuses(ctx, actions_model.FindTaskOptions{
 		StartedBefore: timeutil.TimeStamp(time.Now().Add(-setting.Actions.EndlessTaskTimeout).Unix()),
-	})
+	}, actions_model.StatusRunning, actions_model.StatusCancelling)
+}
+
+func stopTasksByStatuses(ctx context.Context, opts actions_model.FindTaskOptions, statuses ...actions_model.Status) error {
+	for _, status := range statuses {
+		optsByStatus := opts
+		optsByStatus.Status = status
+		if err := stopTasks(ctx, optsByStatus); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func notifyWorkflowJobStatusUpdate(ctx context.Context, jobs []*actions_model.ActionRunJob) {
@@ -83,7 +93,7 @@ func shouldBlockJobByConcurrency(ctx context.Context, job *actions_model.ActionR
 		return false, nil
 	}
 
-	runs, jobs, err := actions_model.GetConcurrentRunsAndJobs(ctx, job.RepoID, job.ConcurrencyGroup, []actions_model.Status{actions_model.StatusRunning})
+	runs, jobs, err := actions_model.GetConcurrentRunsAndJobs(ctx, job.RepoID, job.ConcurrencyGroup, []actions_model.Status{actions_model.StatusRunning, actions_model.StatusCancelling})
 	if err != nil {
 		return false, fmt.Errorf("GetConcurrentRunsAndJobs: %w", err)
 	}
@@ -114,7 +124,7 @@ func shouldBlockRunByConcurrency(ctx context.Context, actionRun *actions_model.A
 		return false, nil
 	}
 
-	runs, jobs, err := actions_model.GetConcurrentRunsAndJobs(ctx, actionRun.RepoID, actionRun.ConcurrencyGroup, []actions_model.Status{actions_model.StatusRunning})
+	runs, jobs, err := actions_model.GetConcurrentRunsAndJobs(ctx, actionRun.RepoID, actionRun.ConcurrencyGroup, []actions_model.Status{actions_model.StatusRunning, actions_model.StatusCancelling})
 	if err != nil {
 		return false, fmt.Errorf("find concurrent runs and jobs: %w", err)
 	}

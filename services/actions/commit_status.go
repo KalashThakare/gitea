@@ -173,6 +173,8 @@ func createCommitStatus(ctx context.Context, repo *repo_model.Repository, event,
 		description = "Has been skipped"
 	case actions_model.StatusRunning:
 		description = "Has started running"
+	case actions_model.StatusCancelling:
+		description = "Cancellation in progress"
 	case actions_model.StatusWaiting:
 		description = "Waiting to run"
 	case actions_model.StatusBlocked:
@@ -200,7 +202,7 @@ func toCommitStatus(status actions_model.Status) commitstatus.CommitStatusState 
 		return commitstatus.CommitStatusSuccess
 	case actions_model.StatusFailure, actions_model.StatusCancelled:
 		return commitstatus.CommitStatusFailure
-	case actions_model.StatusWaiting, actions_model.StatusBlocked, actions_model.StatusRunning:
+	case actions_model.StatusWaiting, actions_model.StatusBlocked, actions_model.StatusRunning, actions_model.StatusCancelling:
 		return commitstatus.CommitStatusPending
 	case actions_model.StatusSkipped:
 		return commitstatus.CommitStatusSkipped

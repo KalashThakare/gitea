@@ -438,6 +438,7 @@ func CancelPreviousJobsByRunConcurrency(ctx context.Context, actionRun *ActionRu
 	statusFindOption := []Status{StatusWaiting, StatusBlocked}
 	if actionRun.ConcurrencyCancel {
 		statusFindOption = append(statusFindOption, StatusRunning)
+		statusFindOption = append(statusFindOption, StatusCancelling)
 	}
 	runs, jobs, err := GetConcurrentRunsAndJobs(ctx, actionRun.RepoID, actionRun.ConcurrencyGroup, statusFindOption)
 	if err != nil {
