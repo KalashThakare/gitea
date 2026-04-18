@@ -381,7 +381,11 @@ func UpdateTaskByState(ctx context.Context, runnerID int64, state *runnerv1.Task
 
 		// state.Result is not unspecified means the task is finished
 		if state.Result != runnerv1.Result_RESULT_UNSPECIFIED {
-			task.Status = Status(state.Result)
+			if task.Status == StatusCancelling {
+				task.Status = StatusCancelled
+			} else {
+				task.Status = StatusFromResult(state.Result)
+			}
 			task.Stopped = timeutil.TimeStamp(state.StoppedAt.AsTime().Unix())
 			if err := UpdateTask(ctx, task, "status", "stopped"); err != nil {
 				return nil, err
@@ -416,7 +420,7 @@ func UpdateTaskByState(ctx context.Context, runnerID int64, state *runnerv1.Task
 				step.Stopped = convertTimestamp(v.StoppedAt)
 			}
 			if result != runnerv1.Result_RESULT_UNSPECIFIED {
-				step.Status = Status(result)
+				step.Status = StatusFromResult(result)
 			} else if step.Started != 0 {
 				step.Status = StatusRunning
 			}
@@ -430,7 +434,7 @@ func UpdateTaskByState(ctx context.Context, runnerID int64, state *runnerv1.Task
 }
 
 func StopTask(ctx context.Context, taskID int64, status Status) error {
-	if !status.IsDone() {
+	if !status.IsDone() && status != StatusCancelling {
 		return fmt.Errorf("cannot stop task with status %v", status)
 	}
 	e := db.GetEngine(ctx)
@@ -446,6 +450,20 @@ func StopTask(ctx context.Context, taskID int64, status Status) error {
 	}
 
 	now := timeutil.TimeStampNow()
+	if status == StatusCancelling {
+		task.Status = StatusCancelling
+
+		if _, err := UpdateRunJob(ctx, &ActionRunJob{
+			ID:     task.JobID,
+			RepoID: task.RepoID,
+			Status: StatusCancelling,
+		}, nil); err != nil {
+			return err
+		}
+
+		return UpdateTask(ctx, task, "status")
+	}
+
 	task.Status = status
 	task.Stopped = now
 	if _, err := UpdateRunJob(ctx, &ActionRunJob{

@@ -179,6 +179,14 @@ func (s *Service) FetchTask(
 	return res, nil
 }
 
+// helper for converting status to result
+func cancellingAsResult(s actions_model.Status) runnerv1.Result {
+	if s == actions_model.StatusCancelling {
+		return runnerv1.Result_RESULT_CANCELLED
+	}
+	return s.AsResult()
+}
+
 // UpdateTask updates the task status.
 func (s *Service) UpdateTask(
 	ctx context.Context,
@@ -238,10 +246,12 @@ func (s *Service) UpdateTask(
 		}
 	}
 
+	respResult := cancellingAsResult(task.Status)
+
 	return connect.NewResponse(&runnerv1.UpdateTaskResponse{
 		State: &runnerv1.TaskState{
 			Id:     req.Msg.State.Id,
-			Result: task.Status.AsResult(),
+			Result: respResult,
 		},
 		SentOutputs: sentOutputs,
 	}), nil

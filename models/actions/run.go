@@ -300,7 +300,7 @@ func CancelJobs(ctx context.Context, jobs []*ActionRunJob) ([]*ActionRunJob, err
 		}
 
 		// If the job has an associated task, try to stop the task, effectively cancelling the job.
-		if err := StopTask(ctx, job.TaskID, StatusCancelled); err != nil {
+		if err := StopTask(ctx, job.TaskID, StatusCancelling); err != nil {
 			return cancelledJobs, err
 		}
 		updatedJob, err := GetRunJobByRunAndID(ctx, job.RunID, job.ID)

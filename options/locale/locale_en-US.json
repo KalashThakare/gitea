@@ -3698,6 +3698,7 @@
   "actions.status.success": "Success",
   "actions.status.failure": "Failure",
   "actions.status.cancelled": "Canceled",
+  "actions.status.cancelling": "Cancelling",
   "actions.status.skipped": "Skipped",
   "actions.status.blocked": "Blocked",
   "actions.runners": "Runners",
